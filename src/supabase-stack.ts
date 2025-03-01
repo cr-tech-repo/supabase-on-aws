@@ -637,16 +637,39 @@ export class SupabaseStack extends FargateStack {
       }),
     });
 
-    /** Supabase Studio Version */
-    const studioBranch = new cdk.CfnParameter(this, 'StudioBranch', {
+    /** Supabase Studio GitHub Branch */
+    const studioGithubBranch = new cdk.CfnParameter(this, 'StudioGithubBranch', {
       type: 'String',
-      default: 'v0.23.09',
-      description: 'Branch or tag - https://github.com/supabase/supabase/tags',
+      default: 'master',
+      description: 'GitHub branch for Supabase Studio',
+    });
+
+    /** Supabase Studio GitHub Token */
+    const studioGithubToken = new cdk.CfnParameter(this, 'StudioGithubToken', {
+      type: 'String',
+      description: 'GitHub personal access token with repo scope',
+      noEcho: true, // Hide the token value in CloudFormation console
+    });
+
+    /** Supabase Studio Image URI */
+    const studioImageUri = new cdk.CfnParameter(this, 'StudioImageUri', {
+      type: 'String',
+      default: 'public.ecr.aws/supabase/studio:20250224-d10db0f',
+      description: 'https://gallery.ecr.aws/supabase/studio',
+    });
+
+    /** GitHub Token Secret */
+    const githubTokenSecret = new Secret(this, 'GitHubTokenSecret', {
+      secretName: `${cdk.Aws.STACK_NAME}-GitHub-Token`,
+      description: 'GitHub token for Supabase Studio',
+      secretStringValue: cdk.SecretValue.unsafePlainText(studioGithubToken.valueAsString),
     });
 
     /** Supabase Studio */
     const studio = new SupabaseStudio(this, 'Studio', {
-      sourceBranch: studioBranch.valueAsString,
+      githubBranch: studioGithubBranch.valueAsString,
+      githubTokenSecret: githubTokenSecret,
+      imageUri: studioImageUri.valueAsString,
       supabaseUrl: apiExternalUrl,
       dbSecret: dashboardUserSecret,
       anonKey: anonKey.ssmParameter,
@@ -704,7 +727,9 @@ export class SupabaseStack extends FargateStack {
             storageImageUri.logicalId,
             imgproxyImageUri.logicalId,
             postgresMetaImageUri.logicalId,
-            studioBranch.logicalId,
+            studioGithubBranch.logicalId,
+            studioGithubToken.logicalId,
+            studioImageUri.logicalId,
           ],
         },
         {
@@ -768,7 +793,9 @@ export class SupabaseStack extends FargateStack {
         [imgproxy.taskSize.logicalId]: { default: 'Task Size - imgproxy' },
         [meta.taskSize.logicalId]: { default: 'Task Size - postgres-meta' },
 
-        [studioBranch.logicalId]: { default: 'Supabase Studio Branch' },
+        [studioGithubBranch.logicalId]: { default: 'GitHub Branch - Studio' },
+        [studioGithubToken.logicalId]: { default: 'GitHub Token - Studio' },
+        [studioImageUri.logicalId]: { default: 'Image URI - Studio' },
       },
     };
 
